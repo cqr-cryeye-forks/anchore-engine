@@ -6,8 +6,8 @@ ARG CLI_COMMIT
 
 ENV LANG=en_US.UTF-8 LC_ALL=C.UTF-8
 ENV GOPATH=/go
-ENV SYFT_VERSION=v0.23.0
-ENV GRYPE_VERSION=v0.19.0
+ENV SYFT_VERSION=v0.24.1
+ENV GRYPE_VERSION=v0.22.0
 
 COPY . /buildsource
 WORKDIR /buildsource
@@ -58,7 +58,7 @@ FROM registry.access.redhat.com/ubi8/ubi:8.4 as anchore-engine-final
 
 ARG CLI_COMMIT
 ARG ANCHORE_COMMIT
-ARG ANCHORE_ENGINE_VERSION="0.10.2"
+ARG ANCHORE_ENGINE_VERSION="1.0.0"
 ARG ANCHORE_ENGINE_RELEASE="r0"
 
 # Copy skopeo artifacts from build step
@@ -125,10 +125,11 @@ ENV ANCHORE_CONFIG_DIR=/config \
     AUTHLIB_INSECURE_TRANSPORT=true \
     ANCHORE_MAX_COMPRESSED_IMAGE_SIZE_MB=-1 \
     ANCHORE_GLOBAL_SERVER_REQUEST_TIMEOUT_SEC=180 \
-    ANCHORE_VULNERABILITIES_PROVIDER="grype" \
+    ANCHORE_VULNERABILITIES_PROVIDER=null \
     ANCHORE_GRYPE_DB_URL="https://toolbox-data.anchore.io/grype/databases/listing.json" \
     ANCHORE_ENABLE_PACKAGE_FILTERING="true"
 
+ENV PATH "${PATH}:/anchore-cli/bin"
 
 # Insecure transport required in case for things like tls sidecars
 

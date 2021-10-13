@@ -8,7 +8,6 @@ from typing import Dict, List, Optional
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import asc, func, orm
 
-from anchore_engine.clients.services.common import get_service_endpoint
 from anchore_engine.common.helpers import make_response_error
 from anchore_engine.common.models.policy_engine import Advisory, Artifact
 from anchore_engine.common.models.policy_engine import (
@@ -88,6 +87,7 @@ from anchore_engine.services.policy_engine.engine.vulns.stores import (
     ImageVulnerabilitiesStore,
     Status,
 )
+from anchore_engine.services.policy_engine.engine.vulns.utils import get_api_endpoint
 from anchore_engine.subsys import logger, metrics
 from anchore_engine.utils import timer
 
@@ -439,7 +439,7 @@ class LegacyProvider(VulnerabilitiesProvider):
                     nvd_refs = []
 
                 advisories = []
-                if fixed_artifact.fix_metadata:
+                if fixed_artifact and fixed_artifact.fix_metadata:
                     vendor_advisories = fixed_artifact.fix_metadata.get(
                         "VendorAdvisorySummary", []
                     )
@@ -500,7 +500,7 @@ class LegacyProvider(VulnerabilitiesProvider):
                 if not all_cpe_matches:
                     all_cpe_matches = []
 
-                api_endpoint = self._get_api_endpoint()
+                api_endpoint = get_api_endpoint()
 
                 for image_cpe, vulnerability_cpe in all_cpe_matches:
                     link = vulnerability_cpe.parent.link
@@ -627,7 +627,7 @@ class LegacyProvider(VulnerabilitiesProvider):
 
         logger.spew("Vuln query 1 timing: {}".format(time.time() - t1))
 
-        api_endpoint = self._get_api_endpoint()
+        api_endpoint = get_api_endpoint()
 
         if not namespace or ("nvdv2:cves" in namespace):
             dedupped_return_hash = {}
@@ -937,25 +937,6 @@ class LegacyProvider(VulnerabilitiesProvider):
             advisory_cache[phash] = img_pkg_vuln.fix_has_no_advisory()
 
         return advisory_cache.get(phash)
-
-    @staticmethod
-    def _get_api_endpoint():
-        """
-        Utility function for fetching the url to external api
-        """
-        try:
-            return get_service_endpoint("apiext").strip("/")
-        except:
-            logger.warn(
-                "Could not find valid apiext endpoint for links so will use policy engine endpoint instead"
-            )
-            try:
-                return get_service_endpoint("policy_engine").strip("/")
-            except:
-                logger.warn(
-                    "No policy engine endpoint found either, using default but invalid url"
-                )
-                return "http://<valid endpoint not found>"
 
     def get_sync_util_provider(
         self, sync_configs: Dict[str, SyncConfig]
@@ -1625,23 +1606,27 @@ def set_provider():
     global PROVIDER
 
     provider_name = get_provider_name(get_section_for_vulnerabilities())
+    if not provider_name:
+        raise ValueError(
+            "No vulnerabilities->provider found in the policy-engine configuration, set the provider in your helm chart or docker-compose.yaml"
+        )
+
     provider_class = next(
         (item for item in PROVIDER_CLASSES if item.__config__name__ == provider_name),
         None,
     )
 
     if not provider_class:
-        logger.warn(
-            "No implementation found for configured provider %s. Falling back to default",
+        raise ValueError(
+            'No vulnerabilities provider implementation found for configured provider %s. Supported providers are "grype" or "legacy"',
             provider_name,
         )
-        provider_class = LegacyProvider
 
     PROVIDER = provider_class()
     logger.info("Initialized vulnerabilities provider: %s", PROVIDER.get_config_name())
 
 
-def get_vulnerabilities_provider() -> VulnerabilitiesProvider:
+def get_vulnerabilities_provider() -> Optional[VulnerabilitiesProvider]:
     if not PROVIDER:
         set_provider()
 

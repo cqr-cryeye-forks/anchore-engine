@@ -104,6 +104,7 @@ def process_preflight():
     preflight_check_functions = [
         init_db_content,
         init_feed_registry,
+        init_vulnerabilities_provider,
         init_display_mapper,
     ]
 
@@ -133,6 +134,9 @@ def _init_distro_mappings():
         DistroMapping(from_distro="ubuntu", to_distro="ubuntu", flavor="DEB"),
         DistroMapping(from_distro="amzn", to_distro="amzn", flavor="RHEL"),
         DistroMapping(from_distro="redhat", to_distro="rhel", flavor="RHEL"),
+        DistroMapping(
+            from_distro="sles", to_distro="sles", flavor="RHEL"
+        ),  # RHEL since it uses RPMs for version checks
     ]
 
     # set up any data necessary at system init
@@ -189,6 +193,10 @@ def init_feed_registry():
 def init_display_mapper():
     provider = get_vulnerabilities_provider()
     provider.init_display_mapper()
+
+
+def init_vulnerabilities_provider():
+    get_vulnerabilities_provider()
 
 
 def do_feed_sync(msg):
@@ -335,9 +343,6 @@ def handle_grypedb_sync(*args, **kwargs):
     # import code in function so that it is not imported to all contexts that import policy engine
     # this is an issue caused by these handlers being declared within the __init__.py file
     # See https://github.com/anchore/anchore-engine/issues/991
-    from anchore_engine.services.policy_engine.engine.feeds.grypedb_sync import (
-        GrypeDBSyncError,
-    )
     from anchore_engine.services.policy_engine.engine.tasks import GrypeDBSyncTask
 
     logger.info("init args: {}".format(kwargs))
