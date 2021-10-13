@@ -78,6 +78,7 @@ services:
     - ANCHORE_ADMIN_PASSWORD=foobar
     - ANCHORE_DB_HOST=db
     - ANCHORE_DB_PASSWORD=mysecretpassword
+    - ANCHORE_VULNERABILITIES_PROVIDER=grype
     command: ["anchore-manager", "service", "start", "policy_engine"]
   analyzer:
     image: anchore/anchore-engine-dev:latest
@@ -99,7 +100,8 @@ services:
     - /analysis_scratch
     command: ["anchore-manager", "service", "start", "analyzer"]
   db:
-    image: "postgres:9"
+    image: "postgres:12"
+    hostname: db
     volumes:
     - anchore-db-volume:/var/lib/postgresql/data
     environment:
